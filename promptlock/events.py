@@ -20,6 +20,7 @@ try:
     from llm_toolkit_schema import Event, EventType
     from llm_toolkit_schema.namespaces.prompt import (
         PromptApprovedPayload,
+        PromptPromotedPayload,
         PromptRolledBackPayload,
         PromptSavedPayload,
     )
@@ -30,7 +31,7 @@ except ImportError:  # pragma: no cover
     _SCHEMA_AVAILABLE = False
 
 # source identifier: tool-name@semver as required by the schema envelope
-_SOURCE = "promptlock@0.3.0"
+_SOURCE = "promptlock@0.4.0"
 
 
 # ---------------------------------------------------------------------------
@@ -197,33 +198,15 @@ def emit_prompt_promoted(
     if not _SCHEMA_AVAILABLE:
         return
     try:
-        # PromptPromotedPayload may not exist in older schema versions.
-        try:
-            from llm_toolkit_schema.namespaces.prompt import PromptPromotedPayload
-            payload_dict = PromptPromotedPayload(
-                prompt_id=prompt_id,
-                version=version,
-                from_environment=from_environment,
-                to_environment=to_environment,
-                promoted_by=promoted_by,
-            ).to_dict()
-        except (ImportError, TypeError):
-            # Fallback: hand-roll the payload dict so the event always fires.
-            payload_dict = {
-                "prompt_id": prompt_id,
-                "version": version,
-                "from_environment": from_environment,
-                "to_environment": to_environment,
-                "promoted_by": promoted_by,
-            }
-        # Use PROMPT_PROMOTED if available, otherwise PROMPT_SAVED as the
-        # closest available type (the payload carries the real semantics).
-        try:
-            ev_type = EventType.PROMPT_PROMOTED
-        except AttributeError:
-            ev_type = EventType.PROMPT_SAVED
+        payload_dict = PromptPromotedPayload(
+            prompt_id=prompt_id,
+            version=version,
+            from_environment=from_environment,
+            to_environment=to_environment,
+            promoted_by=promoted_by,
+        ).to_dict()
         event = Event(
-            event_type=ev_type,
+            event_type=EventType.PROMPT_PROMOTED,
             source=_SOURCE,
             payload=payload_dict,
             actor_id=promoted_by,

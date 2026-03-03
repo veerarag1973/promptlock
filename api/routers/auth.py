@@ -15,6 +15,7 @@ from api import audit
 from api.config import settings
 from api.dependencies import get_current_user, get_db
 from api.models import Org, Session, User
+from api.rbac import assign_role
 from api.schemas import LoginRequest, MeResponse, RegisterRequest, TokenResponse
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
@@ -30,11 +31,17 @@ def _verify_password(plain: str, hashed: str) -> bool:
 
 
 def _make_token(user_id: str, org_id: str) -> str:
+    import secrets
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.jwt_expire_minutes
     )
     return jwt.encode(
-        {"sub": user_id, "org": org_id, "exp": expire},
+        {
+            "sub": user_id,
+            "org": org_id,
+            "exp": expire,
+            "jti": secrets.token_hex(16),  # unique per token — prevents hash collisions
+        },
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
@@ -87,11 +94,21 @@ async def register(
     )
     db.add(session)
 
+    # Assign Org Admin role — the first user who creates an org is its administrator.
+    await assign_role(
+        user_id=user.id,
+        role_name="Org Admin",
+        scope_id=org.id,
+        scope_type="org",
+        db=db,
+        created_by=user.id,
+    )
+
     # Emit audit event
     await audit.emit(
         db,
-        event_type="llm.prompt.saved",  # closest available; use x.* in future phases
-        payload={"action": "user.registered", "email": body.email, "org_id": org.id},
+        event_type="x.promptlock.user.registered",
+        payload={"email": body.email, "org_id": org.id},
         actor_user_id=user.id,
         actor_email=body.email,
         actor_ip=request.client.host if request.client else None,
@@ -145,8 +162,8 @@ async def login(
 
     await audit.emit(
         db,
-        event_type="llm.prompt.saved",
-        payload={"action": "user.login", "email": body.email},
+        event_type="x.promptlock.user.login",
+        payload={"email": body.email},
         actor_user_id=user.id,
         actor_email=user.email,
         actor_ip=request.client.host if request.client else None,
@@ -189,6 +206,19 @@ async def logout(
         session = result.scalar_one_or_none()
         if session:
             session.revoked = True
+
+    await audit.emit(
+        db,
+        event_type="x.promptlock.user.logout",
+        payload={"user_id": current_user.id},
+        actor_user_id=current_user.id,
+        actor_email=current_user.email,
+        actor_ip=request.headers.get("x-forwarded-for", 
+                  request.client.host if request.client else None),
+        org_id=current_user.org_id,
+        resource_type="user",
+        resource_id=current_user.id,
+    )
 
 
 # ---------------------------------------------------------------------------

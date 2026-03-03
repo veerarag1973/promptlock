@@ -137,7 +137,7 @@ async def create_environment(
 
     await audit.emit(
         db,
-        event_type="llm.environment.created",
+        event_type="x.promptlock.environment.created",
         payload={"name": req.name, "type": req.type},
         actor_user_id=current_user.id,
         actor_email=current_user.email,
@@ -294,10 +294,17 @@ async def update_promotion(
     promo.comment = req.comment
     promo.resolved_at = datetime.now(timezone.utc)
 
+    # Map promotion decision to the correct built-in llm-toolkit-schema event type.
+    _DECISION_EVENT = {
+        "approved": "llm.prompt.approved",
+        "rejected": "llm.prompt.rejected",
+    }
+    decision_event_type = _DECISION_EVENT.get(req.status, "x.promptlock.promotion.updated")
+
     await audit.emit(
         db,
-        event_type=f"llm.promotion.{req.status}",
-        payload={"comment": req.comment, "promotion_id": promotion_id},
+        event_type=decision_event_type,
+        payload={"comment": req.comment, "promotion_id": promotion_id, "status": req.status},
         actor_user_id=current_user.id,
         actor_email=current_user.email,
         org_id=current_user.org_id,

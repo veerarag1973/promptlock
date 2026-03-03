@@ -13,6 +13,8 @@ from fastapi.responses import JSONResponse
 
 from api.config import settings
 from api.routers import auth, environments, prompts
+from api.routers import audit as audit_router
+from api.routers import roles as roles_router
 from api.schemas import HealthResponse
 
 logger = logging.getLogger("promptlock.api")
@@ -30,6 +32,15 @@ async def lifespan(app: FastAPI):
         settings.api_version,
         settings.environment,
     )
+    # Seed the seven RBAC roles on every startup (idempotent).
+    try:
+        from api.database import AsyncSessionLocal
+        from api.rbac import seed_roles
+        async with AsyncSessionLocal() as db:
+            await seed_roles(db)
+        logger.info("RBAC roles seeded.")
+    except Exception as exc:
+        logger.warning("Role seeding failed (non-fatal): %s", exc)
     yield
     logger.info("promptlock API shutting down.")
 
@@ -93,6 +104,8 @@ async def log_requests(request: Request, call_next):
 app.include_router(auth.router)
 app.include_router(prompts.router)
 app.include_router(environments.router)
+app.include_router(audit_router.router)
+app.include_router(roles_router.router)
 
 
 # ---------------------------------------------------------------------------

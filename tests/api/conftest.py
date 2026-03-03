@@ -51,13 +51,26 @@ async def create_tables():
         await conn.run_sync(Base.metadata.drop_all)
 
 
+@pytest.fixture(scope="session", autouse=True)
+async def seed_roles_fixture(create_tables):
+    """Seed the seven RBAC role rows once per test session."""
+    from api.rbac import seed_roles
+    async with TestSessionLocal() as db:
+        await seed_roles(db)
+
+
+# Tables that should NOT be cleared between tests (reference / seed data).
+_PRESERVED_TABLES = {"roles"}
+
+
 @pytest.fixture(autouse=True)
 async def clear_tables():
     """Truncate all rows between tests so each test starts with a clean DB."""
     yield
     async with TEST_ENGINE.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            if table.name not in _PRESERVED_TABLES:
+                await conn.execute(table.delete())
 
 
 # ---------------------------------------------------------------------------

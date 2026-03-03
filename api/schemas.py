@@ -150,6 +150,58 @@ class PromotionResponse(BaseModel):
     resolved_at: Optional[datetime] = None
 
 
+# ---------------------------------------------------------------------------
+# RBAC (v0.4)
+# ---------------------------------------------------------------------------
+
+
+class AssignRoleRequest(BaseModel):
+    user_id: str
+    role_name: str = Field(min_length=1, max_length=100)
+    scope_id: str = Field(min_length=1, max_length=36)
+    scope_type: str = Field(default="org", pattern="^(org|team|project)$")
+
+
+class RoleAssignmentResponse(BaseModel):
+    id: str
+    user_id: str
+    role_name: str
+    scope_id: str
+    scope_type: str
+    created_by: Optional[str] = None
+    created_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Audit Log (v0.4)
+# ---------------------------------------------------------------------------
+
+
+class AuditEventResponse(BaseModel):
+    id: str
+    event_id: str
+    timestamp: datetime
+    event_type: str
+    source: str
+    actor_user_id: Optional[str] = None
+    actor_email: Optional[str] = None
+    actor_ip: Optional[str] = None
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    resource_version: Optional[str] = None
+    org_id: Optional[str] = None
+    payload_json: Any
+    checksum: Optional[str] = None
+    signature: Optional[str] = None
+    prev_event_id: Optional[str] = None
+
+
+class PaginatedAuditEvents(BaseModel):
+    items: List[AuditEventResponse]
+    next_cursor: Optional[str] = None
+    total: Optional[int] = None
+
+
 class PaginatedPromotions(BaseModel):
     items: List[PromotionResponse]
     next_cursor: Optional[str] = None
