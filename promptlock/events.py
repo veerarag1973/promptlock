@@ -31,7 +31,7 @@ except ImportError:  # pragma: no cover
     _SCHEMA_AVAILABLE = False
 
 # source identifier: tool-name@semver as required by the schema envelope
-_SOURCE = "promptlock@0.4.0"
+_SOURCE = "promptlock@0.5.0"
 
 
 # ---------------------------------------------------------------------------

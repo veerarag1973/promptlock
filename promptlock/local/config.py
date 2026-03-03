@@ -40,21 +40,21 @@ def _load_toml_text(path: Path) -> dict:
         import tomllib
         with path.open("rb") as fh:
             return tomllib.load(fh)
-    except ImportError:
+    except ImportError:  # pragma: no cover
         pass
     # tomli back-port (optional install)
-    try:
+    try:  # pragma: no cover
         import tomli  # type: ignore[import]
         with path.open("rb") as fh:
             return tomli.load(fh)
-    except ImportError:
+    except ImportError:  # pragma: no cover
         pass
     # toml library (already a promptlock dependency on Python <=3.10)
-    try:
+    try:  # pragma: no cover
         import toml  # type: ignore[import]
         with path.open("r", encoding="utf-8") as fh:
             return toml.load(fh)
-    except Exception:
+    except Exception:  # pragma: no cover
         return {}
 
 

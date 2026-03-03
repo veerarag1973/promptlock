@@ -128,6 +128,8 @@ class CreatePromotionRequest(BaseModel):
     to_environment: str = Field(min_length=1, max_length=100)
     version_num: int = Field(ge=1)
     sha256: str = Field(default="", max_length=64)
+    # v0.5: number of reviewer approvals required before the promotion can be executed
+    required_approvals: int = Field(default=1, ge=1)
 
 
 class UpdatePromotionRequest(BaseModel):
@@ -146,8 +148,59 @@ class PromotionResponse(BaseModel):
     requested_by: Optional[str] = None
     status: str
     comment: str
+    required_approvals: int = 1
     created_at: datetime
     resolved_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------------
+# Approval Workflow (v0.5)
+# ---------------------------------------------------------------------------
+
+
+class PromotionReviewRequest(BaseModel):
+    """Payload for a reviewer submitting an approve or reject decision."""
+
+    decision: str = Field(pattern="^(approved|rejected)$")
+    comment: str = Field(min_length=1, max_length=4096)
+
+
+class PromotionReviewResponse(BaseModel):
+    id: str
+    promotion_request_id: str
+    reviewer_id: Optional[str] = None
+    reviewer_email: Optional[str] = None
+    decision: str
+    comment: str
+    created_at: datetime
+
+
+class ExecutePromotionRequest(BaseModel):
+    """Optional comment when a Deployer executes an approved promotion."""
+
+    comment: str = Field(default="", max_length=4096)
+
+
+class BypassApprovalRequest(BaseModel):
+    """Admin-only: bypass all review gates and immediately promote.\n\n    Generates a high-severity APPROVAL_BYPASSED audit event.
+    """
+
+    reason: str = Field(min_length=1, max_length=4096,
+                        description="Mandatory justification for bypassing the approval workflow.")
+
+
+class ActiveVersionResponse(BaseModel):
+    """A single prompt\'s currently active version in an environment."""
+
+    prompt_path: str
+    version_num: int
+    sha256: str
+    activated_at: datetime
+
+
+class ActiveVersionsResponse(BaseModel):
+    environment: str
+    items: List[ActiveVersionResponse]
 
 
 # ---------------------------------------------------------------------------

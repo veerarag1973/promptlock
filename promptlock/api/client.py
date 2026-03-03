@@ -289,14 +289,38 @@ class RegistryClient:
         )
 
     # ------------------------------------------------------------------
+    # Approval Workflow (v0.5)
+    # ------------------------------------------------------------------
+
+    def get_active_versions(self, env_name: str) -> dict:
+        """``GET /v1/environments/{name}/active`` — active prompt versions."""
+        return self._get(f"/v1/environments/{env_name}/active")
+
+    def submit_review(self, promotion_id: str, decision: str, comment: str) -> dict:
+        """``POST /v1/promotions/{id}/reviews`` — reviewer approve / reject."""
+        return self._post(
+            f"/v1/promotions/{promotion_id}/reviews",
+            json={"decision": decision, "comment": comment},
+        )
+
+    def execute_promotion(self, promotion_id: str, comment: str = "") -> dict:
+        """``POST /v1/promotions/{id}/execute`` — Deployer executes an approved promotion."""
+        return self._post(
+            f"/v1/promotions/{promotion_id}/execute",
+            json={"comment": comment},
+        )
+
+    def bypass_approval(self, promotion_id: str, reason: str) -> dict:
+        """``POST /v1/promotions/{id}/bypass`` — Org Admin emergency bypass."""
+        return self._post(
+            f"/v1/promotions/{promotion_id}/bypass",
+            json={"reason": reason},
+        )
+
+    # ------------------------------------------------------------------
     # Health
     # ------------------------------------------------------------------
 
     def health(self) -> dict:
-        """``GET /health``"""
-        resp = httpx.get(
-            f"{self._base}/health",
-            timeout=5.0,
-        )
-        self._raise_for_status(resp)
-        return resp.json()
+        """``GET /health`` — liveness probe."""
+        return self._get("/health")

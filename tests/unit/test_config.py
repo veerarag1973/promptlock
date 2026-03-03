@@ -186,3 +186,43 @@ class TestEnvironmentConfig:
     def test_default_type(self):
         env = EnvironmentConfig(name="test")
         assert env.type == "custom"
+
+
+# ---------------------------------------------------------------------------
+# load_config — edge cases for coverage
+# ---------------------------------------------------------------------------
+
+class TestLoadConfigEdgeCases:
+    def test_non_dict_env_entry_is_skipped(self, tmp_path: Path):
+        """Environments section entries that are not dicts are silently skipped."""
+        toml_content = """\
+[project]
+name = "test"
+
+[environments]
+default = "development"
+invalid_entry = "this is a string not a table"
+
+[environments.development]
+model = "gpt-4"
+"""
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text(toml_content)
+
+        cfg = load_config(tmp_path)
+        # "invalid_entry" should be skipped, "development" should be present
+        assert "development" in cfg.environments
+
+    def test_load_config_exception_returns_default(self, tmp_path: Path, monkeypatch):
+        """If _load_toml_text raises an unexpected exception, return default config."""
+        from promptlock.local import config as config_module
+        config_path = tmp_path / CONFIG_FILENAME
+        config_path.write_text("[project]\nname = 'x'\n")
+
+        def _boom(path):
+            raise RuntimeError("unexpected error")
+
+        monkeypatch.setattr(config_module, "_load_toml_text", _boom)
+        cfg = load_config(tmp_path)
+        assert isinstance(cfg, ProjectConfig)
+        assert cfg.name is None  # default config

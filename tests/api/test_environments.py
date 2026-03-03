@@ -119,10 +119,12 @@ class TestCreatePromotion:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["status"] == "promoted"
+        # v0.5: promotions start as pending, require Reviewer approval
+        assert data["status"] == "pending"
         assert data["prompt_path"] == "prompts/foo.txt"
 
-    async def test_create_promotion_auto_approved(self, client: AsyncClient):
+    async def test_create_promotion_returns_pending(self, client: AsyncClient):
+        """v0.5: all new promotion requests start in 'pending' status."""
         token = await _setup(client, "promo2")
         resp = await client.post(
             "/v1/promotions",
@@ -136,7 +138,7 @@ class TestCreatePromotion:
             headers=_auth(token),
         )
         assert resp.status_code == 201
-        assert resp.json()["status"] == "promoted"
+        assert resp.json()["status"] == "pending"
 
     async def test_create_promotion_no_auth_401(self, client: AsyncClient):
         resp = await client.post(

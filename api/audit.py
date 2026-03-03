@@ -34,6 +34,7 @@ _CUSTOM_TYPES = [
     "x.promptlock.role.revoked",
     "x.promptlock.audit.exported",
     "x.promptlock.access.denied",
+    "x.promptlock.approval.bypassed",   # high-severity — admin bypasses review gate
 ]
 for _ct in _CUSTOM_TYPES:
     validate_custom(_ct)

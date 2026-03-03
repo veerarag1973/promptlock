@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -55,3 +56,39 @@ class TestTagCommand:
             runner.invoke(cli, ["tag", str(f), "v1", "--name", "stable"], catch_exceptions=False)
             result = runner.invoke(cli, ["tag", str(f), "v1", "--name", "stable"], catch_exceptions=False)
             assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# Error-path coverage
+# ---------------------------------------------------------------------------
+
+@patch(
+    "promptlock.commands.tag.find_root",
+    side_effect=FileNotFoundError("no .promptlock found"),
+)
+def test_tag_not_in_project(mock_root, tmp_path: Path):
+    """tag exits 1 when not in a promptlock project."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["tag", "prompts/msg.txt", "v1", "--name", "x"])
+    assert result.exit_code != 0
+
+
+def test_tag_version_not_found(tmp_path: Path):
+    """tag with a non-existent version number exits 1."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        f = _init_file(runner)
+        result = runner.invoke(cli, ["tag", str(f), "v999", "--name", "x"])
+    assert result.exit_code != 0
+    assert "not found" in result.output.lower()
+
+
+def test_tag_invalid_version_format(tmp_path: Path):
+    """tag with a completely invalid version string exits 1."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        f = _init_file(runner)
+        # "nope" cannot be parsed by parse_version_ref → ValueError
+        result = runner.invoke(cli, ["tag", str(f), "nope", "--name", "x"])
+    assert result.exit_code != 0

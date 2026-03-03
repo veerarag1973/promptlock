@@ -61,3 +61,29 @@ class TestRollbackCommand:
             f = _init_and_commit(runner, 1)
             result = runner.invoke(cli, ["rollback", str(f), "v99", "-y"])
             assert result.exit_code != 0 or "not found" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# Error-path coverage
+# ---------------------------------------------------------------------------
+
+@patch(
+    "promptlock.commands.rollback.find_root",
+    side_effect=FileNotFoundError("no .promptlock found"),
+)
+def test_rollback_not_in_project(mock_root, tmp_path: Path):
+    """rollback exits 1 when not in a promptlock project."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["rollback", "prompts/note.txt", "v1", "-y"])
+    assert result.exit_code != 0
+
+
+def test_rollback_invalid_version_string_format(tmp_path: Path):
+    """rollback with a completely invalid version string exits 1."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        f = _init_and_commit(runner, 1)
+        # "nope" is not parseable by parse_version_ref → ValueError
+        result = runner.invoke(cli, ["rollback", str(f), "nope", "-y"])
+    assert result.exit_code != 0

@@ -26,7 +26,7 @@ class Settings:
     # Runtime
     environment: str = os.environ.get("ENVIRONMENT", "development")
     log_level: str = os.environ.get("LOG_LEVEL", "info")
-    api_version: str = os.environ.get("PROMPTLOCK_API_VERSION", "0.4.0")
+    api_version: str = os.environ.get("PROMPTLOCK_API_VERSION", "0.5.0")
 
     # Audit signing key (HMAC — rotate per org in production)
     audit_signing_key: str = os.environ.get("AUDIT_SIGNING_KEY", "audit-dev-secret")

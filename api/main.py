@@ -15,6 +15,7 @@ from api.config import settings
 from api.routers import auth, environments, prompts
 from api.routers import audit as audit_router
 from api.routers import roles as roles_router
+from api.routers import approvals as approvals_router
 from api.schemas import HealthResponse
 
 logger = logging.getLogger("promptlock.api")
@@ -106,6 +107,7 @@ app.include_router(prompts.router)
 app.include_router(environments.router)
 app.include_router(audit_router.router)
 app.include_router(roles_router.router)
+app.include_router(approvals_router.router)
 
 
 # ---------------------------------------------------------------------------

@@ -1,12 +1,13 @@
-"""API routers for environments and promotions (v0.3).
+"""API routers for environments and promotions (v0.3 / v0.5).
 
 Endpoints::
 
     GET   /v1/environments              -- list org environments
     POST  /v1/environments              -- create a new environment
-    POST  /v1/promotions                -- submit a promotion (auto-approved in v0.3)
+    GET   /v1/environments/{name}/active -- active prompt versions in an env
+    POST  /v1/promotions                -- submit promotion request (pending in v0.5)
     GET   /v1/promotions                -- list promotions (filterable by prompt_path)
-    PATCH /v1/promotions/{id}           -- update status (used in v0.5 approval workflow)
+    PATCH /v1/promotions/{id}           -- admin status override
 """
 
 from __future__ import annotations
@@ -21,8 +22,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import audit
 from api.dependencies import get_current_user, get_db
-from api.models import Environment, Prompt, PromptEnvironmentActive, PromotionRequest, User
+from api.models import Environment, Prompt, PromptEnvironmentActive, PromotionRequest, PromptVersion, User
 from api.schemas import (
+    ActiveVersionResponse,
+    ActiveVersionsResponse,
     CreateEnvironmentRequest,
     CreatePromotionRequest,
     EnvironmentResponse,
@@ -62,6 +65,7 @@ def _promotion_to_response(p: PromotionRequest) -> PromotionResponse:
         requested_by=p.requested_by,
         status=p.status,
         comment=p.comment,
+        required_approvals=p.required_approvals,
         created_at=p.created_at,
         resolved_at=p.resolved_at,
     )
@@ -152,6 +156,54 @@ async def create_environment(
 
 
 # ---------------------------------------------------------------------------
+# GET /v1/environments/{name}/active
+# ---------------------------------------------------------------------------
+
+
+@router.get("/environments/{env_name}/active", response_model=ActiveVersionsResponse)
+async def get_active_versions(
+    env_name: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ActiveVersionsResponse:
+    """Return all currently active prompt versions in ``env_name`` for the org.
+
+    Used by ``promptlock validate --env <env>`` to compare local HEADs against
+    the registry.
+    """
+    # Join PromptEnvironmentActive → Prompt to get the prompt path
+    result = await db.execute(
+        select(PromptEnvironmentActive, Prompt)
+        .join(Prompt, PromptEnvironmentActive.prompt_id == Prompt.id)
+        .where(
+            PromptEnvironmentActive.environment == env_name,
+            Prompt.org_id == current_user.org_id,
+        )
+    )
+    rows = result.all()
+
+    # Collect sha256 from PromptVersion
+    items: list[ActiveVersionResponse] = []
+    for active, prompt in rows:
+        # Fetch the sha256 from the PromptVersion row
+        pv_result = await db.execute(
+            select(PromptVersion).where(PromptVersion.id == active.prompt_version_id)
+        )
+        pv = pv_result.scalar_one_or_none()
+        sha256 = pv.sha256 if pv else ""
+        items.append(
+            ActiveVersionResponse(
+                prompt_path=prompt.path,
+                version_num=active.version_num,
+                sha256=sha256,
+                activated_at=active.activated_at,
+            )
+        )
+
+    return ActiveVersionsResponse(environment=env_name, items=items)
+
+
+# ---------------------------------------------------------------------------
 # Promotions
 # ---------------------------------------------------------------------------
 
@@ -196,32 +248,27 @@ async def create_promotion(
         version_num=req.version_num,
         sha256=req.sha256,
         requested_by=current_user.id,
-        # v0.3: auto-approve; v0.5 will change this to "pending"
-        status="promoted",
-        resolved_at=datetime.now(timezone.utc),
+        # v0.5: promotions start as pending — Reviewer must approve, Deployer must execute
+        status="pending",
+        required_approvals=req.required_approvals,
     )
     db.add(promo)
     await db.flush()
 
-    # Upsert prompt_environment_active if we have a known prompt
-    if prompt_id:
-        await _upsert_active(
-            db=db,
-            prompt_id=prompt_id,
-            environment=req.to_environment,
-            version_num=req.version_num,
-            activated_by=current_user.id,
-        )
+    # NOTE: _upsert_active is NOT called here in v0.5.
+    # The version only becomes active once a Deployer calls POST /execute
+    # (or an Org Admin calls POST /bypass).
 
     await audit.emit(
         db,
-        event_type="llm.prompt.promoted",
+        event_type="llm.prompt.saved",
         payload={
             "prompt_path": req.prompt_path,
             "from_environment": req.from_environment,
             "to_environment": req.to_environment,
             "version_num": req.version_num,
             "sha256": req.sha256,
+            "action": "promotion_requested",
         },
         actor_user_id=current_user.id,
         actor_email=current_user.email,

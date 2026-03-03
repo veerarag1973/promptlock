@@ -1,4 +1,4 @@
-"""CLI entry point — registers all commands (v0.3)."""
+"""CLI entry point — registers all commands (v0.5)."""
 
 import click
 from rich.console import Console
@@ -16,6 +16,7 @@ from promptlock.commands.push import push
 from promptlock.commands.pull import pull
 from promptlock.commands.env import env
 from promptlock.commands.promote import promote
+from promptlock.commands.validate import validate
 
 console = Console()
 
@@ -66,3 +67,6 @@ cli.add_command(pull)
 # Environment management (v0.3)
 cli.add_command(env)
 cli.add_command(promote)
+
+# Approval workflows & CI/CD (v0.5)
+cli.add_command(validate)

@@ -296,13 +296,47 @@ class PromotionRequest(Base):
     version_num: Mapped[int] = mapped_column(Integer, nullable=False)
     sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     requested_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
-    # status: promoted (v0.3) | pending | approved | rejected (v0.5+)
-    status: Mapped[str] = mapped_column(String(50), default="promoted", nullable=False)
+    # status: pending | approved | rejected | promoted (v0.5+)
+    status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)
     comment: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # required_approvals: number of Reviewer approvals needed before execute is allowed (default 1)
+    required_approvals: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    reviews: Mapped[list["PromotionReview"]] = relationship(
+        "PromotionReview", back_populates="promotion", cascade="all, delete-orphan"
+    )
+
+
+class PromotionReview(Base):
+    """One row per reviewer decision on a promotion request (v0.5+).
+
+    Separation of duties:
+    - reviewer_id must differ from PromotionRequest.requested_by
+    - executor (POST /execute) must not appear in any PromotionReview for this request
+    """
+
+    __tablename__ = "promotion_reviews"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    promotion_request_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("promotion_requests.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reviewer_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    reviewer_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # decision: 'approved' | 'rejected'
+    decision: Mapped[str] = mapped_column(String(50), nullable=False)
+    comment: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    promotion: Mapped["PromotionRequest"] = relationship("PromotionRequest", back_populates="reviews")
 
 
 # ---------------------------------------------------------------------------
