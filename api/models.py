@@ -243,6 +243,69 @@ class Environment(Base):
 
 
 # ---------------------------------------------------------------------------
+# Promotions — tracks which version is active per (prompt, environment)
+# and the promotion history (spec §3.3; approval gates added in v0.5).
+# ---------------------------------------------------------------------------
+
+
+class PromptEnvironmentActive(Base):
+    """Tracks which prompt_version is currently active in each environment.
+
+    There is at most one active version per (prompt, environment) pair.
+    On promotion this row is upserted (prior version becomes history).
+    """
+
+    __tablename__ = "prompt_environment_active"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    prompt_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    prompt_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("prompt_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    version_num: Mapped[int] = mapped_column(Integer, nullable=False)
+    activated_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    __table_args__ = (
+        UniqueConstraint("prompt_id", "environment", name="uq_active_per_env"),
+    )
+
+
+class PromotionRequest(Base):
+    """Promotion history — one row per promote action.
+
+    In v0.3 status is always ``promoted`` (auto-approved).
+    In v0.5 it gains ``pending`` / ``approved`` / ``rejected`` states
+    with reviewer assignments.
+    """
+
+    __tablename__ = "promotion_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    prompt_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("prompts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    org_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    prompt_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    from_environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    to_environment: Mapped[str] = mapped_column(String(100), nullable=False)
+    version_num: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    requested_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # status: promoted (v0.3) | pending | approved | rejected (v0.5+)
+    status: Mapped[str] = mapped_column(String(50), default="promoted", nullable=False)
+    comment: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# ---------------------------------------------------------------------------
 # RBAC (Phase 4 enforcement; schema defined here — spec §8 Scope Rule)
 # ---------------------------------------------------------------------------
 

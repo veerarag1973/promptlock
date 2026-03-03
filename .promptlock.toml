@@ -1,0 +1,32 @@
+# promptlock project configuration
+# Full reference: https://promptlock.io/docs/configuration
+#
+# This file is optional. If absent, sensible defaults apply.
+# Commit this file to git to share environment config with your team.
+
+[project]
+name = "promptlock"
+# remote = "https://api.promptlock.io"   # override with your self-hosted URL
+
+[environments]
+default = "development"
+
+# ---
+# Each [environments.<name>] block defines per-environment settings.
+# model:   the LLM target for this environment (informational; used by API callers)
+# type:    "builtin" (dev/staging/production/archived) or "custom"
+# ---
+
+[environments.development]
+model = "claude-3-5-sonnet"
+
+[environments.staging]
+model = "claude-3-5-sonnet"
+
+[environments.production]
+model = "claude-3-opus"
+
+# Custom environments are supported too:
+# [environments.canary]
+# model = "claude-3-5-sonnet"
+# type  = "custom"

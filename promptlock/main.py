@@ -1,4 +1,4 @@
-"""CLI entry point — registers all commands (v0.2)."""
+"""CLI entry point — registers all commands (v0.3)."""
 
 import click
 from rich.console import Console
@@ -14,6 +14,8 @@ from promptlock.commands.login import login
 from promptlock.commands.logout import logout
 from promptlock.commands.push import push
 from promptlock.commands.pull import pull
+from promptlock.commands.env import env
+from promptlock.commands.promote import promote
 
 console = Console()
 
@@ -38,6 +40,11 @@ def cli():
       promptlock login
       promptlock push prompts/my-prompt.txt
       promptlock pull prompts/my-prompt.txt
+
+    \b
+    Environment management (v0.3+):
+      promptlock env list
+      promptlock promote prompts/my-prompt.txt --from development --to staging
     """
 
 
@@ -55,3 +62,7 @@ cli.add_command(login)
 cli.add_command(logout)
 cli.add_command(push)
 cli.add_command(pull)
+
+# Environment management (v0.3)
+cli.add_command(env)
+cli.add_command(promote)

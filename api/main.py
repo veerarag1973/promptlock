@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.config import settings
-from api.routers import auth, prompts
+from api.routers import auth, environments, prompts
 from api.schemas import HealthResponse
 
 logger = logging.getLogger("promptlock.api")
@@ -92,6 +92,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(auth.router)
 app.include_router(prompts.router)
+app.include_router(environments.router)
 
 
 # ---------------------------------------------------------------------------

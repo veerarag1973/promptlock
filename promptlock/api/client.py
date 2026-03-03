@@ -86,9 +86,9 @@ class RegistryClient:
                 detail = resp.text
             raise RegistryClientError(resp.status_code, str(detail))
 
-    def _get(self, path: str, **params: Any) -> Any:
+    def _get(self, endpoint: str, **params: Any) -> Any:
         resp = httpx.get(
-            f"{self._base}{path}",
+            f"{self._base}{endpoint}",
             params={k: v for k, v in params.items() if v is not None},
             headers=self._headers(),
             timeout=self._timeout,
@@ -222,6 +222,71 @@ class RegistryClient:
         result = self._get("/v1/prompts", path=path, limit=1)
         items = result.get("items", [])
         return items[0] if items else None
+
+    # ------------------------------------------------------------------
+    # Environments (v0.3)
+    # ------------------------------------------------------------------
+
+    def list_environments(self, cursor: Optional[str] = None, limit: int = 50) -> dict:
+        """``GET /v1/environments`` — list org environments."""
+        return self._get("/v1/environments", cursor=cursor, limit=limit)
+
+    def create_environment(self, name: str, env_type: str = "custom", config: Optional[dict] = None) -> dict:
+        """``POST /v1/environments`` — create a new environment."""
+        return self._post(
+            "/v1/environments",
+            json={"name": name, "type": env_type, "config_json": config or {}},
+        )
+
+    # ------------------------------------------------------------------
+    # Promotions (v0.3)
+    # ------------------------------------------------------------------
+
+    def create_promotion(
+        self,
+        prompt_path: str,
+        from_env: str,
+        to_env: str,
+        version_num: int,
+        sha256: str = "",
+    ) -> dict:
+        """``POST /v1/promotions`` — submit a promotion request (auto-approved in v0.3)."""
+        return self._post(
+            "/v1/promotions",
+            json={
+                "prompt_path": prompt_path,
+                "from_environment": from_env,
+                "to_environment": to_env,
+                "version_num": version_num,
+                "sha256": sha256,
+            },
+        )
+
+    def list_promotions(
+        self,
+        prompt_path: Optional[str] = None,
+        cursor: Optional[str] = None,
+        limit: int = 50,
+    ) -> dict:
+        """``GET /v1/promotions`` — list promotions."""
+        return self._get("/v1/promotions", prompt_path=prompt_path, cursor=cursor, limit=limit)
+
+    def _patch(self, path: str, json: Any = None) -> Any:
+        resp = httpx.patch(
+            f"{self._base}{path}",
+            json=json,
+            headers=self._headers({"Content-Type": "application/json"}),
+            timeout=self._timeout,
+        )
+        self._raise_for_status(resp)
+        return resp.json()
+
+    def update_promotion(self, promotion_id: str, status: str, comment: str = "") -> dict:
+        """``PATCH /v1/promotions/{id}`` — approve or reject a promotion."""
+        return self._patch(
+            f"/v1/promotions/{promotion_id}",
+            json={"status": status, "comment": comment},
+        )
 
     # ------------------------------------------------------------------
     # Health

@@ -30,7 +30,7 @@ except ImportError:  # pragma: no cover
     _SCHEMA_AVAILABLE = False
 
 # source identifier: tool-name@semver as required by the schema envelope
-_SOURCE = "promptlock@0.2.0"
+_SOURCE = "promptlock@0.3.0"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +168,65 @@ def emit_prompt_approved(
             source=_SOURCE,
             payload=payload.to_dict(),
             actor_id=approved_by,
+        )
+        event.validate()
+        _append_event(root, event)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def emit_prompt_promoted(
+    root: Path,
+    prompt_id: str,
+    version: str,
+    from_environment: str,
+    to_environment: str,
+    promoted_by: Optional[str] = None,
+) -> None:
+    """Emit an ``llm.prompt.promoted`` event.
+
+    Parameters
+    ----------
+    root:             Absolute path to the project root.
+    prompt_id:        Stable identifier for the prompt.
+    version:          Version label being promoted, e.g. ``"v3"``.
+    from_environment: Source environment name (e.g. ``"development"``).
+    to_environment:   Target environment name (e.g. ``"staging"``).
+    promoted_by:      Optional actor identifier.
+    """
+    if not _SCHEMA_AVAILABLE:
+        return
+    try:
+        # PromptPromotedPayload may not exist in older schema versions.
+        try:
+            from llm_toolkit_schema.namespaces.prompt import PromptPromotedPayload
+            payload_dict = PromptPromotedPayload(
+                prompt_id=prompt_id,
+                version=version,
+                from_environment=from_environment,
+                to_environment=to_environment,
+                promoted_by=promoted_by,
+            ).to_dict()
+        except (ImportError, TypeError):
+            # Fallback: hand-roll the payload dict so the event always fires.
+            payload_dict = {
+                "prompt_id": prompt_id,
+                "version": version,
+                "from_environment": from_environment,
+                "to_environment": to_environment,
+                "promoted_by": promoted_by,
+            }
+        # Use PROMPT_PROMOTED if available, otherwise PROMPT_SAVED as the
+        # closest available type (the payload carries the real semantics).
+        try:
+            ev_type = EventType.PROMPT_PROMOTED
+        except AttributeError:
+            ev_type = EventType.PROMPT_SAVED
+        event = Event(
+            event_type=ev_type,
+            source=_SOURCE,
+            payload=payload_dict,
+            actor_id=promoted_by,
         )
         event.validate()
         _append_event(root, event)

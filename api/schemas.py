@@ -92,6 +92,71 @@ class PaginatedVersions(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Environments (v0.3)
+# ---------------------------------------------------------------------------
+
+
+class CreateEnvironmentRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    type: str = Field(default="custom", max_length=50)
+    config_json: dict = Field(default_factory=dict)
+
+
+class EnvironmentResponse(BaseModel):
+    id: str
+    org_id: str
+    name: str
+    type: str
+    config_json: dict
+    created_at: datetime
+
+
+class PaginatedEnvironments(BaseModel):
+    items: List[EnvironmentResponse]
+    next_cursor: Optional[str] = None
+    total: Optional[int] = None
+
+
+# ---------------------------------------------------------------------------
+# Promotions (v0.3)
+# ---------------------------------------------------------------------------
+
+
+class CreatePromotionRequest(BaseModel):
+    prompt_path: str = Field(min_length=1, max_length=1024)
+    from_environment: str = Field(min_length=1, max_length=100)
+    to_environment: str = Field(min_length=1, max_length=100)
+    version_num: int = Field(ge=1)
+    sha256: str = Field(default="", max_length=64)
+
+
+class UpdatePromotionRequest(BaseModel):
+    status: str = Field(pattern="^(approved|rejected)$")
+    comment: str = Field(default="", max_length=4096)
+
+
+class PromotionResponse(BaseModel):
+    id: str
+    prompt_id: Optional[str] = None
+    prompt_path: str
+    from_environment: str
+    to_environment: str
+    version_num: int
+    sha256: str
+    requested_by: Optional[str] = None
+    status: str
+    comment: str
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+
+
+class PaginatedPromotions(BaseModel):
+    items: List[PromotionResponse]
+    next_cursor: Optional[str] = None
+    total: Optional[int] = None
+
+
+# ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 
