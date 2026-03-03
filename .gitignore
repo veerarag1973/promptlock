@@ -179,3 +179,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# promptlock
+# The .promptlock/ directory stores local prompt version history.
+# Commit it to git to share history with your team, or exclude it:
+# .promptlock/

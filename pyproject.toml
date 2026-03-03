@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "promptlock"
+version = "0.1.0"
+description = "Version control and enterprise governance for prompts"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "llm-toolkit-schema>=1.1.1",
+]
+
+[project.scripts]
+promptlock = "promptlock.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/promptlock/promptlock"
+Issues = "https://github.com/promptlock/promptlock/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["promptlock"]
