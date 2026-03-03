@@ -19,6 +19,7 @@ from typing import List, Optional
 try:
     from llm_toolkit_schema import Event, EventType
     from llm_toolkit_schema.namespaces.prompt import (
+        PromptApprovedPayload,
         PromptRolledBackPayload,
         PromptSavedPayload,
     )
@@ -29,7 +30,7 @@ except ImportError:  # pragma: no cover
     _SCHEMA_AVAILABLE = False
 
 # source identifier: tool-name@semver as required by the schema envelope
-_SOURCE = "promptlock@0.1.0"
+_SOURCE = "promptlock@0.2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +126,48 @@ def emit_prompt_rolled_back(
             source=_SOURCE,
             payload=payload.to_dict(),
             actor_id=rolled_back_by,
+        )
+        event.validate()
+        _append_event(root, event)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def emit_prompt_approved(
+    root: Path,
+    prompt_id: str,
+    version: str,
+    approved_by: str,
+    approval_note: Optional[str] = None,
+) -> None:
+    """Emit an ``llm.prompt.approved`` event.
+
+    Used when a named tag is attached to a version — tagging is the
+    lightweight approval signal in v0.1 / v0.2 before the full
+    approval-workflow gates are implemented in v0.5.
+
+    Parameters
+    ----------
+    root:          Absolute path to the project root.
+    prompt_id:     Stable identifier for the prompt.
+    version:       Version label that received the tag.
+    approved_by:   Actor who applied the tag.
+    approval_note: The tag name (used as the approval note).
+    """
+    if not _SCHEMA_AVAILABLE:
+        return
+    try:
+        payload = PromptApprovedPayload(
+            prompt_id=prompt_id,
+            version=version,
+            approved_by=approved_by,
+            approval_note=approval_note,
+        )
+        event = Event(
+            event_type=EventType.PROMPT_APPROVED,
+            source=_SOURCE,
+            payload=payload.to_dict(),
+            actor_id=approved_by,
         )
         event.validate()
         _append_event(root, event)

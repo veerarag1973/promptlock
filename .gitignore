@@ -183,3 +183,13 @@ cython_debug/
 # The .promptlock/ directory stores local prompt version history.
 # Commit it to git to share history with your team, or exclude it:
 # .promptlock/
+
+# v0.2 Cloud Registry
+.env
+.env.*
+!.env.example
+alembic/versions/*.pyc
+# Keep alembic/versions/*.py tracked — migrations are source code.
+
+# Docker
+docker-compose.override.yml

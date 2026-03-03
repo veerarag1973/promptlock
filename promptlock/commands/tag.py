@@ -8,11 +8,13 @@ from rich.console import Console
 
 from promptlock.local.store import (
     find_root,
+    get_current_author,
     get_version,
     parse_version_ref,
     write_version,
     _normalize_prompt_path,
 )
+from promptlock.events import emit_prompt_approved
 
 console = Console()
 
@@ -64,6 +66,17 @@ def tag(file: str, version: str, name: str):
     tags.append(name)
     meta["tags"] = tags
     write_version(root, prompt_path, meta)
+
+    # Emit llm-toolkit-schema event — tagging is the lightweight approval
+    # signal before full approval workflows are introduced in v0.5.
+    actor = get_current_author()
+    emit_prompt_approved(
+        root=root,
+        prompt_id=prompt_path,
+        version=f"v{version_num}",
+        approved_by=actor,
+        approval_note=name,
+    )
 
     console.print(
         f"[green]Tagged[/green] [bold]{prompt_path}[/bold] "
